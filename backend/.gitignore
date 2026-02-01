@@ -1,0 +1,48 @@
+# ------------------------------------
+# Dependencies
+# ------------------------------------
+/node_modules
+/dist
+/build
+/temp
+/coverage
+
+# ------------------------------------
+# Logs
+# ------------------------------------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.log
+*.log
+
+# ------------------------------------
+# Configuration
+# ------------------------------------
+# Keep environment variables secret
+.env
+.vercel/output
+.npmrc
+.pnpm-store
+
+# ------------------------------------
+# OS Generated Files
+# ------------------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------------------
+# Development / Runtime Exclusions
+# ------------------------------------
+# Vite-Node (if used for backend development/testing)
+.vite
+/vite-cache
+
+# Common editors/IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+/generated/prisma
+
+/src/generated/prisma

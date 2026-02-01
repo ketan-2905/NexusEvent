@@ -1,0 +1,307 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =====================================
+// ENUMS
+// =====================================
+enum EventStaffRole {
+  ADMIN
+  SCANNER
+}
+
+enum EventStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CheckpointType {
+  SINGLE
+  MULTIPLE
+}
+
+enum VisitStatus {
+  NOT_VISITED
+  INSIDE
+  EXITED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum SourceType {
+  RAW
+  EVENT_PARTICIPANT
+}
+
+enum SourceStatus {
+  PENDING
+  MAPPED
+  PROCESSED
+}
+
+enum FoodPreference {
+  VEG
+  NON_VEG
+  JAIN
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// =====================================
+// ACCOUNT USER (PAYING / PLATFORM USER)
+// =====================================
+// =====================================
+// ACCOUNT USER (PAYING / PLATFORM USER)
+// =====================================
+model AccountUser {
+  id              String  @id @default(cuid())
+  name            String
+  email           String  @unique
+  password        String
+  isEmailVerified Boolean @default(false)
+
+  isActive Boolean @default(true)
+
+  // Email Credentials (Optional - for sending on behalf)
+  emailUser String?
+  emailPass String? // App Password (store carefully)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  events   Event[]
+  payments Payment[]
+}
+
+// =====================================
+// EVENT (OWNED BY ACCOUNT USER)
+// =====================================
+model Event {
+  id      String @id @default(cuid())
+  name    String
+  ownerId String
+
+  status EventStatus @default(DRAFT)
+
+  // emailTemplate String? // Removed in favor of activeTemplate relation
+  activeTemplateId String?
+  activeTemplate   EmailDraft? @relation("ActiveEventTemplate", fields: [activeTemplateId], references: [id])
+
+  owner AccountUser @relation(fields: [ownerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  staff              EventStaff[]
+  participants       Participant[]
+  participantSources ParticipantSource[]
+  checkpoints        Checkpoint[]
+  payments           Payment[]
+  emailDrafts        EmailDraft[]        @relation("EventDrafts")
+  emailLogs          EmailLog[]
+  emailJobs          EmailJob[]
+}
+
+model EmailDraft {
+  id      String @id @default(cuid())
+  eventId String
+
+  name     String // e.g. "Registration Welcome", "Round 2 Invite"
+  subject  String?
+  template String  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event          Event   @relation("EventDrafts", fields: [eventId], references: [id], onDelete: Cascade)
+  activeForEvent Event[] @relation("ActiveEventTemplate")
+}
+
+model ParticipantSource {
+  id       String       @id @default(cuid())
+  eventId  String
+  fileName String
+  fileType String
+  fileUrl  String
+  status   SourceStatus @default(PENDING)
+  type     SourceType   @default(RAW)
+  headers  Json?
+  mapping  Json? // Store the mapping used if we want to save it
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model EmailLog {
+  id            String @id @default(cuid())
+  eventId       String
+  participantId String
+
+  status String // "SENT", "FAILED"
+  error  String? // Error message if failed
+  sentAt DateTime @default(now())
+
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  jobId String?
+  job   EmailJob? @relation(fields: [jobId], references: [id])
+}
+
+model EmailJob {
+  id      String @id @default(cuid())
+  eventId String
+
+  status      JobStatus @default(PENDING)
+  totalCount  Int       @default(0)
+  sentCount   Int       @default(0)
+  failedCount Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  logs  EmailLog[]
+}
+
+// =====================================
+// EVENT STAFF (ADMINS / SCANNER)
+// =====================================
+model EventStaff {
+  id      String @id @default(cuid())
+  eventId String
+
+  name     String
+  email    String
+  password String
+  role     EventStaffRole @default(SCANNER)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, email])
+}
+
+// =====================================
+// PARTICIPANT (EVENT ATTENDEE)
+// =====================================
+model Participant {
+  id      String @id @default(cuid())
+  eventId String
+
+  name String
+
+  teamName String?
+  teamId   String?
+
+  email          String
+  phone          String?
+  branch         String?
+  year           String?
+  foodPreference FoodPreference @default(VEG)
+
+  token String @unique // QR token
+  qrUrl String
+
+  data Json?
+
+  registrationTime DateTime @default(now())
+
+  event     Event      @relation(fields: [eventId], references: [id])
+  visits    Visit[]
+  emailLogs EmailLog[]
+}
+
+// =====================================
+// CHECKPOINT
+// =====================================
+model Checkpoint {
+  id      String @id @default(cuid())
+  eventId String
+
+  name      String
+  type      CheckpointType
+  timeLimit Int?
+
+  isFoodCheckpoint Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event  Event   @relation(fields: [eventId], references: [id])
+  visits Visit[]
+}
+
+// =====================================
+// VISIT (SCAN / ENTRY TRACKING)
+// =====================================
+model Visit {
+  id            String @id @default(cuid())
+  participantId String
+  checkpointId  String
+
+  visitCount   Int         @default(0)
+  lastStatus   VisitStatus @default(NOT_VISITED)
+  lastScanTime DateTime?
+
+  participant Participant @relation(fields: [participantId], references: [id])
+  checkpoint  Checkpoint  @relation(fields: [checkpointId], references: [id])
+
+  @@unique([participantId, checkpointId])
+}
+
+// =====================================
+// PAYMENT (STRIPE-READY)
+// =====================================
+model Payment {
+  id      String @id @default(cuid())
+  eventId String
+  userId  String
+
+  amount   Int // INR (store rupees, convert to paise for Stripe)
+  currency String        @default("INR")
+  status   PaymentStatus
+
+  provider  String // "stripe"
+  orderId   String? // Stripe payment_intent_id
+  paymentId String? // Stripe charge_id (optional)
+
+  receiptUrl String? // Stripe receipt URL
+  rawEventId String? // Stripe webhook event ID
+
+  createdAt DateTime @default(now())
+
+  event Event       @relation(fields: [eventId], references: [id])
+  user  AccountUser @relation(fields: [userId], references: [id])
+}
