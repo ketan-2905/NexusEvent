@@ -293,7 +293,7 @@ const EventEmailEditor = ({ eventId, eventName }) => {
                                 if (e.target.value) insertTag(`{{${e.target.value}}}`);
                                 e.target.value = "";
                             }}
-                            className="bg-white/5 border border-white/10 text-xs text-slate-300 rounded px-2 py-1 outline-none hover:bg- max-w-[100px]"
+                            className="bg-slate-800 border border-white/10 text-xs text-slate-300 rounded px-2 py-1 outline-none hover:bg- max-w-[100px]"
                         >
                             <option value="">+ Field</option>
                             {getAllKeys().map(k => (

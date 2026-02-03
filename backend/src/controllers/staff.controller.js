@@ -197,6 +197,9 @@ export const validateQR = async (req, res) => {
   const checkpoint = await prisma.checkpoint.findUnique({ where: { id: checkpointId } });
   if (!checkpoint) throw new ExpressError("Checkpoint not found", 404);
 
+  if (participant.eventId !== checkpoint.eventId) {
+    throw new ExpressError("Participant not authorized for this event", 403);
+  }
   // 3. Staff Auth check
   // (Ideally we check staff.eventId === checkpoint.eventId, but verifyToken + usage already implies some trust, 
   // but explicit check is better).

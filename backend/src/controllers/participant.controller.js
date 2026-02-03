@@ -217,13 +217,23 @@ export const updateParticipant = async (req, res) => {
     const prismaData = {};
     const jsonData = {};
 
+    console.log("updates", updates);
+
+
     Object.keys(updates).forEach(key => {
-        if (standardFields.includes(key)) {
-            prismaData[key] = updates[key];
-        } else {
-            // It's a custom field, put it in data
+        // console.log("Outer", key);
+        // if (standardFields.includes(key)) {
+        //     prismaData[key] = updates[key];
+        // } else {
+        //     // It's a custom field, put it in data
+        //     jsonData[key] = updates[key];
+        //     console.log("Inner", key);
+
+        // }
+        Object.keys(updates.data).forEach(key => {
             jsonData[key] = updates[key];
-        }
+        });
+
     });
 
     // 2. We need to merge existing data with new jsonData
@@ -239,7 +249,14 @@ export const updateParticipant = async (req, res) => {
     const participant = await prisma.participant.update({
         where: { id },
         data: {
-            ...prismaData,
+            name: prismaData.name,
+            email: prismaData.email,
+            phone: prismaData.phone,
+            branch: prismaData.branch,
+            year: prismaData.year,
+            teamName: prismaData.teamName,
+            teamId: prismaData.teamId,
+            foodPreference: prismaData.foodPreference,
             data: mergedData
         }
     });

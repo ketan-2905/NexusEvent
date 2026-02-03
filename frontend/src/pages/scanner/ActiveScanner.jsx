@@ -62,7 +62,11 @@ const ActiveScanner = () => {
             setScanResult(res.data);
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.message || "Scan validation failed";
+            const msg =
+                err.response?.data?.error?.message ||   // <-- THIS is the correct path
+                err.response?.data?.message ||
+                err.response?.data?.error ||
+                "Action failed";
             setErrorMsg(msg);
             setScanResult(null); // Show error state
         } finally {
@@ -88,7 +92,11 @@ const ActiveScanner = () => {
             setScanResult(prev => ({ ...prev, success: true }));
 
         } catch (err) {
-            const msg = err.response?.data?.message || "Action failed";
+            const msg =
+                err.response?.data?.error?.message ||   // <-- THIS is the correct path
+                err.response?.data?.message ||
+                err.response?.data?.error ||
+                "Action failed";
             setErrorMsg(msg);
         } finally {
             setLoading(false);

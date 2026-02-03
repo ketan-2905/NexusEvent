@@ -583,6 +583,10 @@ export const scanQR = async (req, res) => {
   });
   if (!checkpoint) throw new ExpressError("Checkpoint not found", 404);
 
+  if (participant.eventId !== checkpoint.eventId) {
+    throw new ExpressError("Participant not authorized for this event", 403);
+  }
+
   // Security Check: Ensure scanner is authorized for this event
   const user = req.user;
   if (!user) throw new ExpressError("Unauthorized", 401);

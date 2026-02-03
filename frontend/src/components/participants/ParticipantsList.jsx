@@ -50,7 +50,7 @@ const EditParticipantModal = ({ participant, onClose, onSave, allKeys }) => {
                     <div>
                         <h4 className="text-blue-400 font-bold mb-3 uppercase text-xs tracking-wider">Standard Info</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {standardFields.map(field => (
+                            {/* {standardFields.map(field => (
                                 <div key={field.key}>
                                     <label className="block text-slate-400 text-sm mb-1">{field.label}</label>
                                     <input
@@ -60,7 +60,68 @@ const EditParticipantModal = ({ participant, onClose, onSave, allKeys }) => {
                                         onChange={e => handleChange(field.key, e.target.value)}
                                     />
                                 </div>
-                            ))}
+                            ))} */}
+
+                            {standardFields.map(field => {
+                                // ---- YEAR SELECT ----
+                                if (field.key === "year") {
+                                    return (
+                                        <div key={field.key}>
+                                            <label className="block text-slate-400 text-sm mb-1">
+                                                {field.label}
+                                            </label>
+
+                                            <select
+                                                className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-600 outline-none"
+                                                value={formData[field.key] || "1"}
+                                                onChange={e => handleChange(field.key, e.target.value)}
+                                            >
+                                                {[1, 2, 3, 4].map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    );
+                                }
+
+                                // ---- FOOD PREFERENCE SELECT ----
+                                if (field.key === "foodPreference") {
+                                    return (
+                                        <div key={field.key}>
+                                            <label className="block text-slate-400 text-sm mb-1">
+                                                {field.label}
+                                            </label>
+
+                                            <select
+                                                className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-600 outline-none"
+                                                value={formData[field.key] || "VEG"}
+                                                onChange={e => handleChange(field.key, e.target.value)}
+                                            >
+                                                <option value="VEG">Veg</option>
+                                                <option value="NON_VEG">Non Veg</option>
+                                                <option value="JAIN">Jain</option>
+                                            </select>
+                                        </div>
+                                    );
+                                }
+
+                                // ---- DEFAULT TEXT INPUT ----
+                                return (
+                                    <div key={field.key}>
+                                        <label className="block text-slate-400 text-sm mb-1">
+                                            {field.label}
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-600 outline-none"
+                                            value={formData[field.key] || ""}
+                                            onChange={e => handleChange(field.key, e.target.value)}
+                                        />
+                                    </div>
+                                );
+                            })}
+
                         </div>
                     </div>
 
@@ -242,7 +303,10 @@ const ParticipantsList = ({ eventId }) => {
         }
     };
 
+
     const handleUpdateParticipant = async (id, data) => {
+        console.log("data", data);
+
         try {
             await api.put(`/events/${eventId}/participants/${id}`, data);
             toast.success("Participant updated");
@@ -281,6 +345,8 @@ const ParticipantsList = ({ eventId }) => {
     };
 
     const extraColumns = getAllKeys();
+    // console.log("extraColumns", extraColumns);
+
 
     if (loading) return <div className="p-10 text-center text-slate-400">Loading participants...</div>;
 

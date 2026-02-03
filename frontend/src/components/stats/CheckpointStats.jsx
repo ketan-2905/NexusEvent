@@ -113,7 +113,7 @@ const CheckpointStats = () => {
         });
     };
 
-    let visitedList, gapList, notSeparatedList;
+    let visitedList = [], gapList = [], notSeparatedList = [];
 
     if (isSeparate) {
         visitedList = sortList(lists.visited || []);
@@ -318,14 +318,12 @@ const CheckpointStats = () => {
                 </div>
             </div>
 
-            {/* Two Table Layout */}
-            {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6"> */}
             {isSeparate ? (<div className="flex flex-col">
                 {/* -- Left Table: Visited -- */}
                 <div className="bg-slate-900 border border-white/10 overflow-hidden flex flex-col h-[500px]">
                     <div className="p-4 bg-white/5 border-b border-white/10 flex justify-between items-center">
                         <h3 className="font-bold text-white flex items-center gap-2">
-                            <Users className="w-4 h-4" /> Visited {checkpointName} ({visitedList.length})
+                            <Users className="w-4 h-4" /> Visited <span className="underline">{checkpointName}</span> ({visitedList.length})
                         </h3>
                         {compareMode === "NONE" ? null : (<div className="flex items-center gap-3">
                             Seprated View <button
@@ -350,6 +348,7 @@ const CheckpointStats = () => {
                         list={visitedList}
                         attribute={selectedAttributes}
                         setSelectedAttributes={setSelectedAttributes}
+                        sortBy={sortBy}
                         setAvailableKeys={setAvailableKeys}
                         emptyMsg="No visits yet."
                     />
@@ -361,10 +360,10 @@ const CheckpointStats = () => {
                         <div className="p-4 bg-white/5 border-b border-white/10 flex justify-between items-center">
                             {compareMode === 'TOTAL' ? (<p className="font-bold text-white flex items-center gap-2">
                                 <Filter className="w-4 h-4" />
-                                Not Visited {checkpointName}
+                                Not Visited <span className="underline">{checkpointName}</span> ({gapList.length})
                             </p>) : (<p className="font-bold text-white flex items-center gap-2">
                                 <Filter className="w-4 h-4" />
-                                Visited <span className="underline">{compareTargetId ? checkpoints.find(c => c.id === compareTargetId)?.name : 'Unknown'}</span> but Missing  in <span className="underline">{checkpointName}</span> {" "}
+                                Visited <span className="underline">{compareTargetId ? checkpoints.find(c => c.id === compareTargetId)?.name : 'Unknown'}</span> but Missing in <span className="underline">{checkpointName}</span> {" "}
                                 ({gapList.length})
                             </p>)}
                         </div>
@@ -372,6 +371,7 @@ const CheckpointStats = () => {
                             list={gapList}
                             attribute={selectedAttributes}
                             setSelectedAttributes={setSelectedAttributes}
+                            sortBy={sortBy}
                             setAvailableKeys={setAvailableKeys}
                             emptyMsg="No gap found."
                         />
@@ -381,10 +381,16 @@ const CheckpointStats = () => {
                 {/* -- Left Table: Visited -- */}
                 <div className="bg-slate-900 border border-white/10 overflow-hidden flex flex-col h-[500px]">
                     <div className="p-4 bg-white/5 border-b border-white/10 flex justify-between items-center">
-                        <h3 className="font-bold text-white flex items-center gap-2">
-                            <Users className="w-4 h-4" /> Visited ({visitedList.length})/Not Visited ({gapList.length})
-                        </h3>
-                        <div className="flex items-center gap-3">
+                        {compareMode === 'TOTAL' ? (<p className="font-bold text-white flex items-center gap-2">
+                            <Filter className="w-4 h-4" />
+                            Visited <span className="underline">{checkpointName}</span> ({lists.visited.length})/Not Visited <span className="underline">{checkpointName}</span> ({lists.gap.length})
+                        </p>) : compareMode === 'NONE' ? <p className="font-bold text-white flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            Visited {checkpointName} ({lists.visited.length})
+                        </p> : (<p className="font-bold text-white flex items-center gap-2">
+                            <Users className="w-4 h-4" /> Visited <span className="underline">{checkpointName}</span> ({lists.visited.length})/Not Visited <span className="underline">{checkpointName}</span> but visited in <span className="underline">{compareTargetId ? checkpoints.find(c => c.id === compareTargetId)?.name : 'Unknown'}</span> ({lists.gap.length})
+                        </p>)}
+                        {compareMode === "NONE" ? null : (<div className="flex items-center gap-3">
                             Seprated View <button
                                 onClick={() => setIsSeparate(prev => !prev)}
                                 className={clsx(
@@ -401,12 +407,13 @@ const CheckpointStats = () => {
                                     )}
                                 />
                             </button>
-                        </div>
+                        </div>)}
                     </div>
                     <ParticipantTable
                         list={notSeparatedList}
                         attribute={selectedAttributes}
                         setSelectedAttributes={setSelectedAttributes}
+                        sortBy={sortBy}
                         setAvailableKeys={setAvailableKeys}
                         emptyMsg="No visits yet."
                     />
@@ -418,12 +425,95 @@ const CheckpointStats = () => {
 };
 
 // Reusable Table Component (Internal)
-const ParticipantTable = ({ list, attribute, emptyMsg, setSelectedAttributes, setAvailableKeys }) => {
-    if (list.length === 0) return <div className="p-10 text-center text-slate-500">{emptyMsg}</div>;
+// const ParticipantTable = ({ list, attribute, emptyMsg, setSelectedAttributes, setAvailableKeys }) => {
+//     if (list.length === 0) return <div className="p-10 text-center text-slate-500">{emptyMsg}</div>;
+
+//     return (
+//         <div className="flex-1 overflow-y-auto custom-scrollbar">
+//             <table className="w-full table-auto text-left text-sm text-slate-400">
+//                 <thead className="bg-slate-800 text-slate-200 sticky top-0 z-10 shadow-sm">
+//                     <tr>
+//                         <th className="p-3">Name</th>
+//                         <th className="p-3">Email</th>
+//                         <th className="p-3">Phone</th>
+//                         <th className="p-3">Team name</th>
+//                         {attribute.map((attr) => (
+//                             <th className="p-3 text-blue-300 whitespace-nowrap">
+//                                 <div className="flex items-center gap-2">
+//                                     <span>{attr}</span>
+//                                     <button
+//                                         className="text-slate-500 hover:text-red-400"
+//                                         onClick={() => {
+//                                             setAvailableKeys(prev => [...prev, attr])
+//                                             setSelectedAttributes(prev => prev.filter(i => i !== attr))
+//                                         }}
+//                                     >
+//                                         ✕
+//                                     </button>
+//                                 </div>
+//                             </th>
+
+//                         ))}
+//                         <th className="p-3 text-right">Status</th>
+//                     </tr>
+//                 </thead>
+//                 <tbody>
+//                     {list.map((p) => {
+//                         return (
+//                             <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+//                                 <td className="p-3 font-medium text-white max-w-[150px] truncate">{p.name}</td>
+//                                 <td className="p-3 text-sm truncate">{p.email}</td>
+//                                 <td className="p-3 text-sm truncate">{p.phone}</td>
+//                                 <td className="p-3 text-sm truncate">{p.teamName}</td>
+
+//                                 {attribute.map((attr) => (
+//                                     <td className="p-3 text-sm truncate">{p[attr]} </td>
+//                                 ))}
+//                                 <td className="p-3 text-right">
+//                                     <span className={clsx(
+//                                         "px-2 py-0.5 rounded text-sm font-bold",
+//                                         p.status === "INSIDE" ? "bg-emerald-500/10 text-emerald-400" :
+//                                             p.status === "EXITED" ? "bg-orange-500/10 text-orange-400" :
+//                                                 "bg-slate-800 text-slate-500"
+//                                     )}>
+//                                         {p.status || "NOT_VISTED"}
+//                                     </span>
+//                                 </td>
+//                             </tr>
+//                         );
+//                     })}
+//                 </tbody>
+//             </table>
+//         </div>
+//     );
+// };
+
+// ParticipantTable (complete)
+const ParticipantTable = ({
+    list,
+    attribute = [],
+    sortBy = "",
+    emptyMsg = "No rows",
+    setSelectedAttributes,
+    setAvailableKeys
+}) => {
+    if (!Array.isArray(list) || list.length === 0) {
+        return <div className="p-10 text-center text-slate-500">{emptyMsg}</div>;
+    }
+
+    // helper to normalize values for grouping comparison
+    const norm = (val) => {
+        if (val === null || val === undefined) return "";
+        if (typeof val === "string") return val.trim().toLowerCase();
+        return String(val).toLowerCase();
+    };
+
+    // compute how many columns exist (for potential group header row if needed)
+    const columnsCount = 4 + attribute.length + 1; // Name, Email, Phone, Team name, ...attrs, Status
 
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-            <table className="w-full table-auto text-left text-sm text-slate-400">
+            <table className="w-full table-auto text-left text-sm text-slate-400 border-collapse">
                 <thead className="bg-slate-800 text-slate-200 sticky top-0 z-10 shadow-sm">
                     <tr>
                         <th className="p-3">Name</th>
@@ -431,37 +521,63 @@ const ParticipantTable = ({ list, attribute, emptyMsg, setSelectedAttributes, se
                         <th className="p-3">Phone</th>
                         <th className="p-3">Team name</th>
                         {attribute.map((attr) => (
-                            <th className="p-3 text-blue-300 whitespace-nowrap">
+                            <th key={attr} className="p-3 text-blue-300 whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                     <span>{attr}</span>
                                     <button
                                         className="text-slate-500 hover:text-red-400"
                                         onClick={() => {
-                                            setAvailableKeys(prev => [...prev, attr])
-                                            setSelectedAttributes(prev => prev.filter(i => i !== attr))
+                                            // restore attr to available keys and remove from selected attributes
+                                            if (typeof setAvailableKeys === "function") {
+                                                setAvailableKeys(prev => Array.from(new Set([...(prev || []), attr])));
+                                            }
+                                            if (typeof setSelectedAttributes === "function") {
+                                                setSelectedAttributes(prev => (prev || []).filter(i => i !== attr));
+                                            }
                                         }}
+                                        aria-label={`Remove ${attr}`}
                                     >
                                         ✕
                                     </button>
                                 </div>
                             </th>
-
                         ))}
                         <th className="p-3 text-right">Status</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                    {list.map((p) => {
+                    {list.map((p, index) => {
+                        // values used for grouping detection
+                        const current = norm(p?.[sortBy]);
+                        const prev = norm(list[index - 1]?.[sortBy]);
+                        const next = norm(list[index + 1]?.[sortBy]);
+
+                        // only consider grouping when sortBy is truthy
+                        const isGroupingActive = !!sortBy;
+                        const isGroupStart = isGroupingActive && (index === 0 || current !== prev);
+                        const isGroupEnd = isGroupingActive && (index === list.length - 1 || current !== next);
+
+                        // classes:
+                        const rowClass = clsx(
+                            "transition-colors hover:bg-white/5",
+                            // if group start add top border
+                            isGroupStart && "border-t-2 border-blue-500/70",
+                            // if group end add bottom border (heavier), else thin divider
+                            isGroupEnd ? "border-b-2 border-blue-500/70" : "border-b border-white/5"
+                        );
+
                         return (
-                            <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <tr key={p.id || `${index}`} className={rowClass}>
                                 <td className="p-3 font-medium text-white max-w-[150px] truncate">{p.name}</td>
                                 <td className="p-3 text-sm truncate">{p.email}</td>
                                 <td className="p-3 text-sm truncate">{p.phone}</td>
                                 <td className="p-3 text-sm truncate">{p.teamName}</td>
 
                                 {attribute.map((attr) => (
-                                    <td className="p-3 text-sm truncate">{p[attr]} </td>
+                                    <td key={attr} className="p-3 text-sm truncate">{p[attr] ?? "-"}</td>
                                 ))}
+
                                 <td className="p-3 text-right">
                                     <span className={clsx(
                                         "px-2 py-0.5 rounded text-sm font-bold",
@@ -469,7 +585,7 @@ const ParticipantTable = ({ list, attribute, emptyMsg, setSelectedAttributes, se
                                             p.status === "EXITED" ? "bg-orange-500/10 text-orange-400" :
                                                 "bg-slate-800 text-slate-500"
                                     )}>
-                                        {p.status || "NOT_VISTED"}
+                                        {p.status || "NOT_VISITED"}
                                     </span>
                                 </td>
                             </tr>
@@ -480,5 +596,6 @@ const ParticipantTable = ({ list, attribute, emptyMsg, setSelectedAttributes, se
         </div>
     );
 };
+
 
 export default CheckpointStats;
