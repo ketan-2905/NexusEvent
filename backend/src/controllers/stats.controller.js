@@ -118,7 +118,7 @@ export const getCheckpointStats = async (req, res) => {
         });
     }
 
-    const totalparticipant = await prisma.participant.count();
+    const totalparticipant = await prisma.participant.count({ where: { eventId: eventId } });
 
 
     res.json({

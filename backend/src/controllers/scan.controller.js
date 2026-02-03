@@ -698,7 +698,8 @@ async function updateLiveStats({
       recent,
     ] = await Promise.all([
       prisma.checkpoint.findMany({
-        include: { visits: { where: { lastStatus: "INSIDE" } } },
+        where: { eventId: checkpoint.eventId },
+        include: { visits: { where: { lastStatus: { in: ["INSIDE", "EXITED"] } } } },
         orderBy: { createdAt: "asc" },
       }),
       prisma.participant.count(),
@@ -719,11 +720,19 @@ async function updateLiveStats({
       }),
     ]);
 
-    // Format live status
+    // Format live status (Only INSIDE count for existing dashboard consumers)
     const formattedLiveStatus = checkpoints.map((cp) => ({
       id: cp.id,
       name: cp.name,
-      count: cp.visits.length,
+      count: cp.visits.filter(v => v.lastStatus === "INSIDE").length,
+    }));
+
+    // Overview Graph Data (Visited vs Exited) for Stats Page
+    const overviewGraph = checkpoints.map((cp) => ({
+      id: cp.id,
+      name: cp.name,
+      visited: cp.visits.filter(v => v.lastStatus === "INSIDE").length,
+      exited: cp.visits.filter(v => v.lastStatus === "EXITED").length,
     }));
 
     // format recent scans to include image if participant has it
@@ -739,6 +748,7 @@ async function updateLiveStats({
 
     // Emit live updates
     io.emit("live-status:updated", formattedLiveStatus);
+    io.emit("event-overview:updated", overviewGraph);
     io.emit("live-count:updated", data);
 
     // Registration Desk special handling

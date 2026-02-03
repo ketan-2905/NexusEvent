@@ -4,11 +4,12 @@ import {
     PieChart, Pie, Cell
 } from 'recharts';
 import {
-    ArrowLeft, Filter, Download, ArrowUp, ArrowDown, Users
+    ArrowLeft, Filter, ArrowUp, ArrowDown, Users, Wifi, WifiOff
 } from "lucide-react";
 import api from "../../utils/api";
 import clsx from "clsx";
 import { useNavigate, useParams } from "react-router-dom";
+import { io } from "socket.io-client";
 
 const CustomPieTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
@@ -25,6 +26,7 @@ const CustomPieTooltip = ({ active, payload }) => {
 const CheckpointStats = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isConnected, setIsConnected] = useState(false);
 
     // UI State
     const [selectedAttributes, setSelectedAttributes] = useState([]); // Dynamic column
@@ -51,6 +53,99 @@ const CheckpointStats = () => {
         fetchStats();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [checkpointId, compareMode, compareTargetId]);
+
+    // Socket Connection
+    useEffect(() => {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace("/api", "") || "http://localhost:5000";
+        const socket = io(baseUrl);
+
+        socket.on("connect", () => {
+            console.log("Stats Connected to Socket");
+            setIsConnected(true);
+        });
+
+        socket.on("disconnect", () => {
+            console.log("Stats Disconnected from Socket");
+            setIsConnected(false);
+        });
+
+        socket.on("event-overview:updated", (data) => {
+            setStats(prev => {
+                if (!prev) return prev;
+                return { ...prev, overviewGraph: data };
+            });
+        });
+
+        socket.on("scan:updated", (data) => {
+            setStats(prev => {
+                if (!prev) return prev;
+
+                const { participant, visit, checkpointId: scannedCpId } = data;
+                const newStatus = visit.lastStatus;
+
+                let newVisited = [...(prev.lists?.visited || [])];
+                let newGap = [...(prev.lists?.gap || [])];
+                let updated = false;
+
+                // 1. Update if Scan happened at CURRENT Checkpoint
+                if (scannedCpId === checkpointId) {
+                    updated = true;
+                    // Update Visited List
+                    const existingIdx = newVisited.findIndex(p => p.id === participant.id);
+                    if (existingIdx >= 0) {
+                        newVisited[existingIdx] = { ...newVisited[existingIdx], status: newStatus };
+                    } else {
+                        // Normalize (flatten data) just like fetchStats
+                        const normalizedParticipant = {
+                            ...participant,
+                            ...(participant.data || {}),
+                            status: newStatus
+                        };
+                        newVisited.push(normalizedParticipant);
+                    }
+
+                    // Remove from Gap List (if present)
+                    newGap = newGap.filter(p => p.id !== participant.id);
+                }
+
+                // 2. Update if Scan happened at COMPARED TARGET Checkpoint
+                // (Only relevant if compareMode is CHECKPOINT)
+                if (compareMode === 'CHECKPOINT' && scannedCpId === compareTargetId) {
+                    // Start logic: If user visited target, they MIGHT join the gap list (if not visited current)
+                    const visitedCurrent = newVisited.some(p => p.id === participant.id);
+                    if (!visitedCurrent) {
+                        // Not visited current. Check if they are already in gap
+                        const inGap = newGap.some(p => p.id === participant.id);
+                        if (!inGap) {
+                            updated = true;
+                            const normalizedParticipant = {
+                                ...participant,
+                                ...(participant.data || {})
+                            };
+                            newGap.push(normalizedParticipant);
+                        }
+                    }
+                }
+
+                if (!updated) return prev;
+
+                return {
+                    ...prev,
+                    lists: { ...prev.lists, visited: newVisited, gap: newGap },
+                    summary: {
+                        ...prev.summary,
+                        totalVisits: newVisited.length,
+                        totalGap: newGap.length
+                    }
+                };
+            });
+        });
+
+        return () => {
+            socket.disconnect();
+        }
+    }, [checkpointId, compareMode, compareTargetId]);
+
 
     const fetchCheckpoints = async () => {
         try {
@@ -133,7 +228,22 @@ const CheckpointStats = () => {
                         <ArrowLeft className="w-5 h-5 text-slate-300" />
                     </button>
                     <div>
-                        <h2 className="text-2xl font-bold text-white">{checkpointName} <span className="text-slate-500 font-normal">Details</span></h2>
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                            {checkpointName} <span className="text-slate-500 font-normal">Details</span>
+                            {isConnected ? (
+                                <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    </span>
+                                    Real-time
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-slate-500 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full">
+                                    <WifiOff className="w-3 h-3" /> Offline
+                                </span>
+                            )}
+                        </h2>
                         <p className="text-slate-400 text-sm">Event-wide Overview & Details</p>
                     </div>
                 </div>
@@ -232,7 +342,7 @@ const CheckpointStats = () => {
                                 <Pie
                                     data={[
                                         { name: 'Visited', value: summary.totalVisits },
-                                        { name: 'Remaining', value: summary.totalparticipant }
+                                        { name: 'Remaining', value: summary.totalparticipant - summary.totalVisits }
                                     ]}
                                     innerRadius={60}
                                     outerRadius={80}
