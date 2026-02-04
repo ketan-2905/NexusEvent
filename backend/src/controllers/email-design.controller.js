@@ -91,3 +91,19 @@ export const deleteEmailDraft = async (req, res) => {
     await prisma.emailDraft.delete({ where: { id: draftId } });
     res.json({ message: "Draft deleted" });
 };
+
+export const updateEmailDraft = async (req, res) => {
+    const { draftId } = req.params;
+    const { name, subject, template } = req.body;
+
+    const draft = await prisma.emailDraft.update({
+        where: { id: draftId },
+        data: {
+            name,
+            subject,
+            template
+        }
+    });
+
+    res.json(draft);
+};

@@ -9,6 +9,11 @@ const StaffProtectedLayout = () => {
         return <div className="bg-slate-900 flex items-center justify-center text-white">Loading Staff Session...</div>;
     }
 
+    console.log(staffUser);
+
+
+
+
     if (!staffUser) {
         return <Navigate to="/scan/login" replace />;
     }

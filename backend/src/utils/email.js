@@ -29,7 +29,6 @@ export const sendVerificationEmail = async (email, code) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Message sent: %s", info.messageId);
     return info;
   } catch (error) {
     console.error("Error sending email:", error);
@@ -58,7 +57,6 @@ export const sendCredentialsEmail = async (email, password, eventName) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Credentials sent: %s", info.messageId);
     return info;
   } catch (error) {
     console.error("Error sending credentials:", error);

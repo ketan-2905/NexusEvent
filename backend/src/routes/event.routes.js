@@ -1,6 +1,6 @@
 import express from "express";
 import { createEvent, getMyEvents, getEventById, updateEvent } from "../controllers/event.controller.js";
-import { addStaff, getEventStaff } from "../controllers/staff.controller.js";
+import { addStaff, getEventStaff, updateStaff } from "../controllers/staff.controller.js";
 import { verifyToken } from "../middleware/auth.js";
 import { wrapAsync } from "../utils/expressError.js";
 import participantSourceRoutes from "./participant-source.routes.js";
@@ -17,6 +17,7 @@ router.put("/:id", wrapAsync(updateEvent));
 
 router.post("/:eventId/staff", wrapAsync(addStaff));
 router.get("/:eventId/staff", wrapAsync(getEventStaff));
+router.put("/:eventId/staff/:staffId", wrapAsync(updateStaff));
 
 // Participants
 router.get("/:eventId/participants", wrapAsync(getEventParticipants));
@@ -28,9 +29,10 @@ router.get("/:eventId/email-logs", wrapAsync(getEmailLogs));
 router.get("/:eventId/email-job/active", wrapAsync(getActiveEmailJob));
 
 // Email Design & AI
-import { generateEmailTemplate, saveEmailDraft, getEmailDrafts, deleteEmailDraft } from "../controllers/email-design.controller.js";
+import { generateEmailTemplate, saveEmailDraft, updateEmailDraft, getEmailDrafts, deleteEmailDraft } from "../controllers/email-design.controller.js";
 router.post("/:eventId/generate-email", wrapAsync(generateEmailTemplate));
 router.post("/:eventId/email-drafts", wrapAsync(saveEmailDraft));
+router.put("/:eventId/email-drafts/:draftId", wrapAsync(updateEmailDraft));
 router.get("/:eventId/email-drafts", wrapAsync(getEmailDrafts));
 router.delete("/:eventId/email-drafts/:draftId", wrapAsync(deleteEmailDraft));
 

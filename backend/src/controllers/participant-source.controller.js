@@ -17,9 +17,7 @@ cloudinary.config({
 const getGeneratedCsvPath = (userId, eventName) => `participants/${userId}/${eventName}/generated/participants.csv`;
 
 export const uploadParticipantSource = async (req, res) => {
-    console.log("Upload endpoint hit. Params:", req.params);
-    console.log("File received:", req.file ? `Buffer length: ${req.file.buffer.length}` : "No file");
-    console.log("User:", req.user);
+
 
     const { eventId } = req.params;
     const file = req.file;

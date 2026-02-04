@@ -32,6 +32,11 @@ const ScannerDashboard = () => {
                     return;
                 }
 
+                if (user.role === "ADMIN") {
+                    navigate(`/scan/event/${eventId}/checkpoints`);
+                    return;
+                }
+
                 // 2. Fetch Event Details (Name, etc.)
                 // Use new staff-specific route that bypasses ownership check but enforces assignment check
                 const eventRes = await staffApi.get(`/staff/events/${eventId}`);

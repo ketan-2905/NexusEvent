@@ -16,6 +16,7 @@ const EmailLogs = ({ eventId }) => {
         setLoading(true);
         try {
             const res = await api.get(`/events/${eventId}/email-logs`);
+            console.log(res.data);
             setLogs(res.data);
         } catch (err) {
             console.error(err);
@@ -35,7 +36,12 @@ const EmailLogs = ({ eventId }) => {
             fetchLogs();
         } catch (err) {
             console.error(err);
-            toast.error("Retry failed: " + (err.response?.data?.message || err.message));
+            const msg =
+                err.response?.data?.error?.message ||   // <-- THIS is the correct path
+                err.response?.data?.message ||
+                err.response?.data?.error ||
+                "Action failed";
+            toast.error("Retry failed: " + msg);
         } finally {
             setRetryingId(null);
             toast.dismiss(toastId);

@@ -17,6 +17,9 @@ export const addStaff = async (req, res) => {
   const ownerId = req.user.id;
 
   // Verify event ownership
+  // Staff cannot add other staff
+  if (req.user.type === "staff") throw new ExpressError("Unauthorized", 403);
+
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event || event.ownerId !== ownerId) {
     throw new ExpressError("Event not found or unauthorized", 404);
@@ -49,6 +52,29 @@ export const addStaff = async (req, res) => {
   await sendCredentialsEmail(email, rawPassword, event.name);
 
   res.status(201).json({ message: "Staff added", staff, rawPassword }); // returning rawPassword for dev convenience, but should be via email in prod
+};
+
+export const updateStaff = async (req, res) => {
+  const { eventId, staffId } = req.params;
+  const { role, isActive } = req.body;
+  const ownerId = req.user.id;
+
+  if (req.user.type === "staff") throw new ExpressError("Unauthorized", 403);
+
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event || event.ownerId !== ownerId) {
+    throw new ExpressError("Event not found or unauthorized", 404);
+  }
+
+  const staff = await prisma.eventStaff.update({
+    where: { id: staffId },
+    data: {
+      role,
+      isActive
+    }
+  });
+
+  res.json({ message: "Staff updated", staff });
 };
 
 export const getEventStaff = async (req, res) => {
@@ -178,6 +204,9 @@ export const getStaffCheckpoints = async (req, res) => {
     return res.status(403).json({ error: "Unauthorized access to this event" });
   }
 
+  // If role is ADMIN, they can see checkpoints stats too. 
+  // Requirement: "For the staff who is the admin... only the checkpoint page will be shown... view stat would be shown"
+
   const checkpoints = await prisma.checkpoint.findMany({
     where: { eventId }
   });
@@ -237,6 +266,7 @@ export const validateQR = async (req, res) => {
       name: participant.name,
       email: participant.email,
       token: participant.token,
+      foodPreference: participant.foodPreference,
       // Add other fields if schema has them (photo, etc.)
     },
     currentStatus,

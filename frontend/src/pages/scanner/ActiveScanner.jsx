@@ -112,6 +112,11 @@ const ActiveScanner = () => {
 
     if (!checkpoint) return <div className="bg-black min-h-screen text-white flex items-center justify-center">Loading...</div>;
 
+    console.log("Checkpoint", checkpoint);
+    console.log("ScanResult", scanResult);
+
+
+
     return (
         <div className="h-screen bg-slate-900 flex flex-col items-center justify-start relative overflow-hidden">
             {/* Top Bar */}
@@ -187,6 +192,9 @@ const ActiveScanner = () => {
                             </div> */}
                             <h2 className="text-2xl font-bold text-white">{scanResult.participant.name}</h2>
                             <p className="text-slate-400 text-sm mt-1">{scanResult.participant.email}</p>
+                            {checkpoint.isFoodCheckpoint && scanResult.nextAction === "entry" ? (
+                                <p className="text-slate-100 text-sm mt-1">Food Preference: {scanResult.participant.foodPreference}</p>
+                            ) : null}
                             {/* <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-slate-800 text-xs font-mono text-slate-300 border border-slate-700">
                                 {scanResult.participant.token}
                             </div> */}

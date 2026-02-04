@@ -107,7 +107,7 @@ const StaffManager = () => {
                                         <p className="text-slate-500 text-sm text-center py-4">No staff assigned yet.</p>
                                     ) : (
                                         staffList[selectedEvent.id]?.map(staff => (
-                                            <div key={staff.id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                                            <div key={staff.id} className={clsx("flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5", !staff.isActive && "opacity-50")}>
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs text-white">
                                                         {staff.name[0]}
@@ -117,9 +117,44 @@ const StaffManager = () => {
                                                         <p className="text-xs text-slate-500">{staff.email}</p>
                                                     </div>
                                                 </div>
-                                                <span className={clsx("text-xs px-2 py-0.5 rounded border", staff.role === "ADMIN" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" : "bg-blue-500/10 border-blue-500/20 text-blue-400")}>
-                                                    {staff.role}
-                                                </span>
+                                                <div className="flex items-center gap-3">
+                                                    <select
+                                                        className="bg-slate-900 border border-white/10 rounded-lg p-1 text-xs text-slate-300 outline-none focus:border-blue-500"
+                                                        value={staff.role}
+                                                        onChange={async (e) => {
+                                                            const newRole = e.target.value;
+                                                            try {
+                                                                await api.put(`/events/${selectedEvent.id}/staff/${staff.id}`, { role: newRole, isActive: staff.isActive });
+                                                                fetchStaff(); // Refresh
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                alert("Failed to update role");
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="SCANNER">Scanner</option>
+                                                        <option value="ADMIN">Admin</option>
+                                                    </select>
+
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                await api.put(`/events/${selectedEvent.id}/staff/${staff.id}`, { role: staff.role, isActive: !staff.isActive });
+                                                                fetchStaff(); // Refresh
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                alert("Failed to update status");
+                                                            }
+                                                        }}
+                                                        className={clsx("text-xs px-2 py-1 rounded border transition-colors",
+                                                            staff.isActive
+                                                                ? "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20"
+                                                                : "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20"
+                                                        )}
+                                                    >
+                                                        {staff.isActive ? "Active" : "Inactive"}
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))
                                     )}

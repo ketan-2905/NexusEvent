@@ -9,7 +9,9 @@ import { Events } from "./pages/events/Events";
 import Overview from "./pages/dashboard/Overview";
 import CheckpointManager from "./components/checkpoints/CheckpointManager";
 import StaffManager from "./components/staff/StaffManager";
+import StaffCheckpointManager from "./components/checkpoints/StaffCheckpointManager";
 import EventLayout from "./components/EventLayout";
+import EventStaffLayout from "./components/EventStaffLayout";
 import ScannerLayout from "./pages/scanner/ScannerLayout";
 import ScannerLogin from "./pages/scanner/ScannerLogin";
 import ScannerDashboard from "./pages/scanner/ScannerDashboard";
@@ -17,6 +19,7 @@ import ActiveScanner from "./pages/scanner/ActiveScanner";
 import { StaffAuthProvider } from "./context/StaffAuthContext"; // Import provider
 import StaffProtectedLayout from "./pages/scanner/StaffProtectedLayout"; // Import layout
 import CheckpointStats from "./components/stats/CheckpointStats";
+import CheckpointStatsStaff from "./components/stats/CheckpointStatsStaff";
 
 
 const ProtectedLayout = () => {
@@ -86,6 +89,18 @@ function App() {
           <Route element={<StaffProtectedLayout />}>
             <Route path="dashboard" element={<ScannerDashboard />} />
             <Route path="checkpoint/:checkpointId" element={<ActiveScanner />} />
+
+            {/* Admin Staff View */}
+            <Route path="event/:eventId" element={<EventStaffLayout />}>
+              <Route index element={<Navigate to="checkpoints" replace />} />
+              <Route path="checkpoints">
+                <Route index element={<StaffCheckpointManager />} />
+                <Route
+                  path=":checkpointId/stats"
+                  element={<CheckpointStatsStaff />}
+                />
+              </Route>
+            </Route>
           </Route>
         </Route>
 

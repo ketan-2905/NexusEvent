@@ -6,6 +6,9 @@ import toast from "react-hot-toast";
 import CheckpointStats from "../stats/CheckpointStats";
 import useEventStore from "../../store/eventStore";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+
+
 
 const CheckpointManager = ({ events }) => {
 
@@ -72,18 +75,10 @@ const CheckpointManager = ({ events }) => {
         }
     };
 
-    if (!selectedEvent) return <div className="text-center text-slate-500 mt-10">No events found. Create an event first.</div>;
+    const { user } = useAuth();
+    const isStaff = user?.type === "staff";
 
-    // RENDER STATS VIEW
-    // if (viewStatsId) {
-    //     return (
-    //         <CheckpointStats
-    //             checkpointId={viewStatsId}
-    //             eventId={eventId}
-    //             onBack={() => setViewStatsId(null)}
-    //         />
-    //     );
-    // }
+    if (!selectedEvent) return <div className="text-center text-slate-500 mt-10">No events found. Create an event first.</div>;
 
     return (
         <div className="space-y-6">
@@ -98,64 +93,66 @@ const CheckpointManager = ({ events }) => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Create Section */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
-                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                            <Plus className="w-5 h-5 text-blue-400" /> New Checkpoint
-                        </h3>
-                        <form onSubmit={handleCreate} className="space-y-4">
-                            <div>
-                                <label className="block text-slate-400 text-sm mb-1">Checkpoint Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white"
-                                    placeholder="e.g. Main Entrance"
-                                    value={newName}
-                                    onChange={e => setNewName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-slate-400 text-sm mb-1">Access Type</label>
-                                <select
-                                    className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white"
-                                    value={newType}
-                                    onChange={e => setNewType(e.target.value)}
-                                >
-                                    <option value="SINGLE">Single Entry</option>
-                                    <option value="MULTIPLE">Multiple Entry/Exit</option>
-                                </select>
-                            </div>
-
-                            <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer border border-transparent hover:border-emerald-500/30 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    className="w-5 h-5 rounded bg-slate-700 border-white/10 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
-                                    checked={isFood}
-                                    onChange={e => setIsFood(e.target.checked)}
-                                />
+                {/* Create Section - Hidden for Staff */}
+                {!isStaff && (
+                    <div className="lg:col-span-1">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
+                            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Plus className="w-5 h-5 text-blue-400" /> New Checkpoint
+                            </h3>
+                            <form onSubmit={handleCreate} className="space-y-4">
                                 <div>
-                                    <span className="text-emerald-400 font-bold block text-sm flex items-center gap-2">
-                                        <Utensils className="w-3 h-3" /> Food Checkpoint
-                                    </span>
-                                    <span className="text-slate-500 text-xs">Shows food preference when scanning</span>
+                                    <label className="block text-slate-400 text-sm mb-1">Checkpoint Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                        placeholder="e.g. Main Entrance"
+                                        value={newName}
+                                        onChange={e => setNewName(e.target.value)}
+                                    />
                                 </div>
-                            </label>
+                                <div>
+                                    <label className="block text-slate-400 text-sm mb-1">Access Type</label>
+                                    <select
+                                        className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                        value={newType}
+                                        onChange={e => setNewType(e.target.value)}
+                                    >
+                                        <option value="SINGLE">Single Entry</option>
+                                        <option value="MULTIPLE">Multiple Entry/Exit</option>
+                                    </select>
+                                </div>
 
-                            <button
-                                type="submit"
-                                disabled={creating}
-                                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold transition-all disabled:opacity-50"
-                            >
-                                {creating ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Create Checkpoint"}
-                            </button>
-                        </form>
+                                <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer border border-transparent hover:border-emerald-500/30 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        className="w-5 h-5 rounded bg-slate-700 border-white/10 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
+                                        checked={isFood}
+                                        onChange={e => setIsFood(e.target.checked)}
+                                    />
+                                    <div>
+                                        <span className="text-emerald-400 font-bold block text-sm flex items-center gap-2">
+                                            <Utensils className="w-3 h-3" /> Food Checkpoint
+                                        </span>
+                                        <span className="text-slate-500 text-xs">Shows food preference when scanning</span>
+                                    </div>
+                                </label>
+
+                                <button
+                                    type="submit"
+                                    disabled={creating}
+                                    className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold transition-all disabled:opacity-50"
+                                >
+                                    {creating ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Create Checkpoint"}
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* List Section */}
-                <div className="lg:col-span-2 space-y-4">
+                <div className={isStaff ? "lg:col-span-3 space-y-4" : "lg:col-span-2 space-y-4"}>
                     {loading ? (
                         <div className="text-center py-10 text-slate-500 animate-pulse">Loading checkpoints...</div>
                     ) : checkpoints.length === 0 ? (
@@ -170,6 +167,7 @@ const CheckpointManager = ({ events }) => {
                                 onDelete={() => handleDelete(cp.id)}
                                 onViewStats={() => setViewStatsId(cp.id)}
                                 eventId={eventId}
+                                isStaff={isStaff} // Pass prop
                             />
                         ))
                     )}
@@ -179,7 +177,7 @@ const CheckpointManager = ({ events }) => {
     );
 };
 
-const CheckpointCard = ({ checkpoint, onDelete, eventId }) => {
+const CheckpointCard = ({ checkpoint, onDelete, eventId, isStaff }) => {
     const isRegDesk = checkpoint.name === "Registration Desk";
 
     return (
@@ -206,7 +204,7 @@ const CheckpointCard = ({ checkpoint, onDelete, eventId }) => {
                         </div>
                     </div>
                 </div>
-                {!isRegDesk && (
+                {!isRegDesk && !isStaff && (
                     <button
                         onClick={onDelete}
                         className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 p-2 rounded-lg text-sm"

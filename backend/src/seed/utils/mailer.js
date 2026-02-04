@@ -96,7 +96,6 @@ export async function sendQRMail(to, name, qrUrl, token) {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Mail sent to ${to}`);
   } catch (error) {
     console.error(`❌ Error sending mail to ${to}:`, error);
   }

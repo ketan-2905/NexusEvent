@@ -14,6 +14,7 @@ import scanRoutes from "./routes/scan.routes.js";
 import statusRoutes from "./routes/status.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import eventRoutes from "./routes/event.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 
@@ -55,9 +56,9 @@ app.use("/api", statusRoutes);
 app.use("/api", dashboardRoutes);
 import staffRoutes from "./routes/staff.routes.js";
 app.use("/api/staff", staffRoutes);
-
+app.use("/api/users", userRoutes);
 app.get("/", (req, res) => {
-  res.send("✅ Backend is live and running on Render!");
+  res.send("✅ Backend is live and running on huggingface!");
 });
 
 // 404 handler - must be after all routes

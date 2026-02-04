@@ -1,15 +1,12 @@
 import {
-  LayoutDashboard,
-  Calendar,
-  Users,
   LogOut,
+  MapPin,
   Menu,
   X,
-  MapPin,
   ArrowLeft
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useStaffAuth } from "../context/StaffAuthContext"; // Changed to StaffAuth
 import { useParams, Outlet, useLocation, useNavigate } from "react-router-dom";
 import useEventStore from "../store/eventStore";
 
@@ -27,8 +24,8 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, url }) => (
   </a>
 );
 
-const EventLayout = () => {
-  const { user, logout } = useAuth();
+const EventStaffLayout = () => {
+  const { staffUser: user, logout } = useStaffAuth(); // Use StaffAuth
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { eventId } = useParams();
@@ -45,27 +42,10 @@ const EventLayout = () => {
     }
   }, [eventId, fetchEventById]);
 
-  let tabs = [
-    { id: "participants", label: "Participants", icon: Calendar, url: `/dashboard/event/${eventId}/participants` },
-    { id: "checkpoints", label: "Checkpoints", icon: MapPin, url: `/dashboard/event/${eventId}/checkpoints` },
-    { id: "staff", label: "Staff", icon: Users, url: `/dashboard/event/${eventId}/staff` },
+  // Staff only sees Checkpoints
+  const tabs = [
+    { id: "checkpoints", label: "Checkpoints", icon: MapPin, url: `/scan/event/${eventId}/checkpoints` },
   ];
-
-  if (user?.type === "staff") {
-    if (user.role === "ADMIN") {
-      // Admin Staff: Overview (implicit in layout), Checkpoints only.
-      tabs = [
-        { id: "checkpoints", label: "Checkpoints", icon: MapPin, url: `/dashboard/event/${eventId}/checkpoints` }
-      ];
-    } else {
-      // Scanner: Maybe no tabs? Or just checkpoints?
-      // User said "whatever the scanner thing we have it should be shown".
-      // Assuming scanners use app, but if they login here, maybe just checkpoints?
-      // I'll leave empty or minimal for now.
-      tabs = [];
-    }
-  }
-
 
   return (
     <div className="min-h-screen bg-slate-900 flex text-slate-100 font-display">
@@ -86,7 +66,7 @@ const EventLayout = () => {
               key={tab.id}
               icon={tab.icon}
               label={tab.label}
-              active={pathname === tab.id}
+              active={pathname === tab.id || (tab.id === 'checkpoints' && !pathname)}
               url={tab.url}
             />
           ))}
@@ -95,11 +75,12 @@ const EventLayout = () => {
         <div className="mt-auto pt-6 border-t border-white/10">
           <div className="flex items-center gap-3 px-2 mb-4">
             <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-blue-400 font-bold border border-white/10">
-              {user?.name?.[0]?.toUpperCase() || "U"}
+              {user?.name?.[0]?.toUpperCase() || "S"}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{user?.name}</p>
               <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+              <p className="text-[10px] text-blue-400 uppercase tracking-wider font-bold">{user?.role}</p>
             </div>
           </div>
           <button
@@ -140,12 +121,12 @@ const EventLayout = () => {
         )}
 
         <div className="p-6 md:p-10 max-w-7xl mx-auto">
-          <button
-            onClick={() => navigate("/dashboard")}
+          {/* <button
+            onClick={() => navigate("/scan/dashboard")}
             className="mb-4 text-sm text-slate-400 hover:text-white flex justify-center items-center gap-2"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-          </button>
+            <ArrowLeft className="w-4 h-4" /> Back to Scanner Dashboard
+          </button> */}
           <Outlet />
         </div>
       </main>
@@ -153,4 +134,4 @@ const EventLayout = () => {
   );
 };
 
-export default EventLayout;
+export default EventStaffLayout;

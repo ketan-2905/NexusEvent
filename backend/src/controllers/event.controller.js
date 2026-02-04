@@ -48,7 +48,14 @@ export const getEventById = async (req, res) => {
     }
   });
   if (!event) throw new ExpressError("Event not found", 404);
-  if (event.ownerId !== req.user.id) throw new ExpressError("Unauthorized", 403);
+  // Check authorization (Owner OR Admin Staff)
+  if (req.user.type === "staff") {
+    if (req.user.eventId !== id || req.user.role !== "ADMIN") {
+      throw new ExpressError("Unauthorized: Staff access restricted", 403);
+    }
+  } else if (event.ownerId !== req.user.id) {
+    throw new ExpressError("Unauthorized", 403);
+  }
   res.json(event);
 };
 

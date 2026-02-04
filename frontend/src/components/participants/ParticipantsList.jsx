@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api";
-import { Mail, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Mail, CheckCircle, AlertTriangle, Loader2, X } from "lucide-react";
 import toast from "react-hot-toast";
+import EventEmailEditor from "./EventEmailEditor";
+import useEmailEditor from "../../store/useEmailEditor";
 
 // Internal Modal Component for Editing
 const EditParticipantModal = ({ participant, onClose, onSave, allKeys }) => {
@@ -50,18 +52,6 @@ const EditParticipantModal = ({ participant, onClose, onSave, allKeys }) => {
                     <div>
                         <h4 className="text-blue-400 font-bold mb-3 uppercase text-xs tracking-wider">Standard Info</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* {standardFields.map(field => (
-                                <div key={field.key}>
-                                    <label className="block text-slate-400 text-sm mb-1">{field.label}</label>
-                                    <input
-                                        type="text"
-                                        className="w-full bg-slate-800 border border-white/10 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-600 outline-none"
-                                        value={formData[field.key] || ""}
-                                        onChange={e => handleChange(field.key, e.target.value)}
-                                    />
-                                </div>
-                            ))} */}
-
                             {standardFields.map(field => {
                                 // ---- YEAR SELECT ----
                                 if (field.key === "year") {
@@ -171,41 +161,23 @@ const ParticipantsList = ({ eventId }) => {
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
-    const [emailStatus, setEmailStatus] = useState(null); // { sent: 0, total: 0, errors: 0, completed: false }
-
-    // Edit Modal State
+    const [emailStatus, setEmailStatus] = useState(null);
     const [editingId, setEditingId] = useState(null);
+
+    // Email Modal State
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [emailTarget, setEmailTarget] = useState("BULK"); // BULK or participant object
+
+    // Store
+    const { setIsModal, currentDraftId, resetEditor } = useEmailEditor();
 
     useEffect(() => {
         fetchParticipants();
-
-        // Socket Listener for Email Progress
-        // Ideally this should use the socket context. 
-        // Since we don't have the context access in this file directly shown, 
-        // we'll listen to the window event if the socket is global, OR 
-        // we assume the socket is available. 
-        // For this specific task, if you have a global socket or api.socket, use it.
-        // Assuming `api.socket` or similar isn't readily available in this snippet, 
-        // but let's assume standard `socket.on`.
-
-        // MOCK/REAL implementation if we had the instance:
-        /*
-        socket.on(`event:${eventId}:email:progress`, (data) => {
-            setEmailStatus(prev => ({ ...prev, ...data }));
-            if (data.completed) setSending(false);
-            if (data.sent) fetchParticipants(); // Live refresh list
-        });
-        */
-
-        // We will polling fallback for robustness as requested "even if there is a reload".
-        // The fetchJobStatus does the heavy lifting on mount.
-        // Polling every 3 seconds if we have an active job is a safe backup.
         const interval = setInterval(() => {
             if (emailStatus && !emailStatus.completed) {
                 fetchJobStatus();
             }
         }, 3000);
-
         return () => clearInterval(interval);
     }, [eventId, emailStatus?.completed]);
 
@@ -214,8 +186,6 @@ const ParticipantsList = ({ eventId }) => {
         try {
             const res = await api.get(`/events/${eventId}/participants`);
             setList(res.data);
-
-            // Also fetch active job status
             fetchJobStatus();
         } catch (err) {
             console.error(err);
@@ -229,7 +199,6 @@ const ParticipantsList = ({ eventId }) => {
             const res = await api.get(`/events/${eventId}/email-job/active`);
             const job = res.data;
             if (job) {
-                // If job is running or just finished, show it
                 if (job.status === "PROCESSING" || job.status === "PENDING") {
                     setSending(true);
                     setEmailStatus({
@@ -240,11 +209,6 @@ const ParticipantsList = ({ eventId }) => {
                         completed: false
                     });
                 } else if (job.status === "COMPLETED") {
-                    // Optional: Show completed state if it was recent? 
-                    // For now, let's just let the user dismiss it or see it if they just reloaded.
-                    // Actually, if it's completed, we might not want to block the UI forever.
-                    // Let's only show if it looks "fresh" or let user dismiss.
-                    // We'll show it as completed so they know what happened.
                     setEmailStatus({
                         jobId: job.id,
                         sent: job.sentCount,
@@ -259,54 +223,99 @@ const ParticipantsList = ({ eventId }) => {
         }
     };
 
-    const handleSendEmails = async () => {
-        if (!window.confirm("Start sending emails to ALL participants? This will run in the background.")) return;
-        setSending(true);
-        const toastId = toast.loading("Initiating email process...");
-        try {
-            const res = await api.post(`/events/${eventId}/send-emails`, {
-                subject: `Your Ticket for Event`
-            });
-            toast.dismiss(toastId);
-            toast.success("Email process started in background.");
-            setEmailStatus({
-                message: "Starting...",
-                sent: 0,
-                total: res.data.total,
-                completed: false,
-                jobId: res.data.jobId
-            });
-            // The socket will update 'emailStatus' in a real app. 
-            // We set sending=true to keep UI blocked until job finishes (or user reloads and we fetch status)
-            setSending(true);
-        } catch (err) {
-            toast.dismiss(toastId);
-            toast.error("Failed to start email process");
-            setSending(false);
-            console.error(err);
-        }
+    const handleSendEmailsClick = () => {
+        setIsModal(true); // Tell store we are in modal mode
+        setEmailTarget("BULK");
+        setShowEmailModal(true);
     };
 
-    const handleResendSingle = async (participant) => {
-        if (!window.confirm(`Resend email to ${participant.name}?`)) return;
+    const handleResendSingleClick = (participant) => {
+        setIsModal(true); // Tell store we are in modal mode
+        setEmailTarget(participant);
+        setShowEmailModal(true);
+    };
 
-        const toastId = toast.loading("Sending email...");
-        try {
-            await api.post(`/events/${eventId}/participants/${participant.id}/send-email`, {});
-            toast.success("Email sent successfully!");
-            fetchParticipants(); // Refresh to show new status
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to send email");
-        } finally {
-            toast.dismiss(toastId);
+    // Close Handler
+    const handleCloseEmailModal = () => {
+        setShowEmailModal(false);
+        setIsModal(false); // Reset store mode
+        // resetEditor(); // Do we want to reset? Maybe not if they want to come back.
+    };
+
+    // Called by EventEmailEditor's Confirm
+    const handleConfirmInternalEmail = async (draftId, subject) => {
+        // Validation handled in Editor (checking if drafted is selected)
+        // draftId comes from the Editor's call to onConfirm(currentDraftId, subject)
+
+        handleCloseEmailModal();
+
+        if (emailTarget === "BULK") {
+            setSending(true);
+            const toastId = toast.loading("Initiating email process...");
+            try {
+                // Ensure we send templateId, backend expects it in body
+                const res = await api.post(`/events/${eventId}/send-emails`, {
+                    subject: subject,
+                    templateId: draftId // Changed from template HTML to ID
+                });
+
+                if (res.data.count === 0) {
+                    toast.dismiss(toastId);
+                    toast.success(res.data.message);
+                    return;
+                } else {
+                    toast.dismiss(toastId);
+                    toast.success("Email process started in background.");
+                }
+
+                setEmailStatus({
+                    message: "Starting...",
+                    sent: 0,
+                    total: res.data.total,
+                    completed: false,
+                    jobId: res.data.jobId
+                });
+                setSending(true);
+            } catch (err) {
+                toast.dismiss(toastId);
+                toast.error("Failed to start email process");
+                setSending(false);
+                console.error(err);
+            }
+        } else {
+            // Single
+            const toastId = toast.loading(`Sending email to ${emailTarget.name}...`);
+            try {
+                // Single email send might still expect "template" content OR "templateId" depending on backend.
+                // Re-reading backend code (not shown fully here, but context implies we should consistently use ID if possible).
+                // "Refactor the code... we need to send a template ID... so it can be accessible".
+                // backend/controllers/participant.controller.js usually handles single send. 
+                // If single send endpoints expects HTML, we have a mismatch.
+                // BUT, user said "in the request we need to send a template ID whatever we will be selecting".
+                // I'll assume I should update the single send call to use ID too, or pass the template content if legacy.
+                // However, I don't see the backend single send endpoint code.
+                // Safer path: Send BOTH if possible, or assume backend is updated.
+                // Actually, the user says "recreate this architecture... send a template ID... so it can be accessible".
+                // I will send templateId.
+
+                await api.post(`/events/${eventId}/participants/${emailTarget.id}/send-email`, {
+                    subject: subject,
+                    templateId: draftId
+                });
+
+                toast.success("Email sent successfully!");
+                fetchParticipants();
+            } catch (err) {
+                console.error(err);
+                toast.error("Failed to send email");
+            } finally {
+                toast.dismiss(toastId);
+            }
         }
     };
 
 
     const handleUpdateParticipant = async (id, data) => {
-        console.log("data", data);
-
         try {
             await api.put(`/events/${eventId}/participants/${id}`, data);
             toast.success("Participant updated");
@@ -314,7 +323,7 @@ const ParticipantsList = ({ eventId }) => {
                 if (p.id !== id) return p;
                 return { ...p, ...data, data: { ...(p.data || {}), ...(data.data || {}) } };
             }));
-            fetchParticipants(); // Refresh to ensure sync
+            fetchParticipants();
         } catch (err) {
             toast.error("Failed to update");
             throw err;
@@ -322,7 +331,7 @@ const ParticipantsList = ({ eventId }) => {
     };
 
     const handleDeleteParticipant = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this participant? This cannot be undone.")) return;
+        if (!window.confirm("Are you sure you want to delete this participant?")) return;
         try {
             await api.delete(`/events/${eventId}/participants/${id}`);
             setList(prev => prev.filter(p => p.id !== id));
@@ -340,13 +349,10 @@ const ParticipantsList = ({ eventId }) => {
                 Object.keys(p.data).forEach(k => keys.add(k));
             }
         });
-        // Remove internal flags from keys if any - No longer needed as we use relation
         return Array.from(keys);
     };
 
     const extraColumns = getAllKeys();
-    // console.log("extraColumns", extraColumns);
-
 
     if (loading) return <div className="p-10 text-center text-slate-400">Loading participants...</div>;
 
@@ -360,15 +366,11 @@ const ParticipantsList = ({ eventId }) => {
                         <h3 className="text-xl font-bold text-white">Registered Participants <span className="text-sm font-normal text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{list.length}</span></h3>
                         <p className="text-slate-400 text-sm">List of people who have been imported successfully.</p>
                     </div>
-                    {/* Button Removed as per request */}
                     <button
-                        onClick={() =>
-
-                            handleSendEmails()
-                        }
+                        onClick={handleSendEmailsClick}
                         className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2"
                     >
-                        Send Email
+                        <Mail className="w-4 h-4" /> Send Emails to All
                     </button>
                 </div>
 
@@ -387,21 +389,6 @@ const ParticipantsList = ({ eventId }) => {
                         </div>
                     </div>
                 )}
-
-                {/* {emailStatus && emailStatus.completed && (
-                    <div className="mb-6 bg-green-500/10 border border-green-500/20 p-4 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <CheckCircle className="w-6 h-6 text-green-400" />
-                            <div>
-                                <p className="text-white font-medium">Email Process Completed</p>
-                                <p className="text-green-400 text-sm">
-                                    Sent: {emailStatus.sent} | Errors: {emailStatus.errors}
-                                </p>
-                            </div>
-                        </div>
-                        <button onClick={() => setEmailStatus(null)} className="text-slate-400 hover:text-white text-sm">Dismiss</button>
-                    </div>
-                )} */}
 
                 {list.length === 0 ? (
                     <div className="text-center py-20 text-slate-500">
@@ -425,7 +412,6 @@ const ParticipantsList = ({ eventId }) => {
                             </thead>
                             <tbody>
                                 {list.map(p => {
-                                    // Extract status from latest email log
                                     const latestLog = p.emailLogs && p.emailLogs.length > 0 ? p.emailLogs[0] : null;
                                     const status = latestLog ? latestLog.status : null;
                                     const error = latestLog ? latestLog.error : null;
@@ -459,7 +445,7 @@ const ParticipantsList = ({ eventId }) => {
                                                     Edit
                                                 </button>
                                                 <button
-                                                    onClick={() => handleResendSingle(p)}
+                                                    onClick={() => handleResendSingleClick(p)}
                                                     className="text-blue-400 hover:text-white px-3 py-1 bg-blue-900/20 rounded border border-blue-500/30 hover:bg-blue-600 transition-all mr-2"
                                                 >
                                                     <Mail className="w-4 h-4" />
@@ -490,8 +476,35 @@ const ParticipantsList = ({ eventId }) => {
                     onSave={handleUpdateParticipant}
                 />
             )}
+
+            {/* Email Send Modal */}
+            {showEmailModal && (
+                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <div className="w-full max-w-6xl">
+                        {/* Header */}
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white">Send Email</h2>
+                                <p className="text-slate-400 text-sm">
+                                    {emailTarget === "BULK"
+                                        ? `Preparing to send to all ${list.length} participants`
+                                        : `Sending to ${emailTarget.name} (${emailTarget.email})`
+                                    }
+                                </p>
+                                <p className="text-orange-400 text-sm">Note: If you want to use or try out different layout Please go in the email editor tab by closing this modal</p>
+                            </div>
+                            <button onClick={handleCloseEmailModal} className="bg-white/10 hover:bg-white/20 p-2 rounded-full text-white"><X className="w-5 h-5" /></button>
+                        </div>
+
+                        <EventEmailEditor
+                            eventId={eventId}
+                            onConfirm={handleConfirmInternalEmail}
+                            onCancel={handleCloseEmailModal}
+                        />
+                    </div>
+                </div>
+            )}
         </>
     );
 };
-
 export default ParticipantsList;

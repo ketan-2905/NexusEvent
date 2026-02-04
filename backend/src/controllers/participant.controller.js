@@ -36,37 +36,49 @@ cloudinary.config({
 
 export const sendEventEmails = async (req, res) => {
     const { eventId } = req.params;
-    const { template, subject } = req.body;
+    const { subject, templateId } = req.body;
+
+    const oldEvent = await prisma.event.findUnique({
+        where: { id: eventId },
+    });
+
+    if (!oldEvent) throw new ExpressError("Event not found", 404);
+    if (!templateId) throw new ExpressError("Template is required", 400);
+
+    if (templateId) {
+
+        const template = await prisma.emailDraft.findUnique({
+            where: { id: templateId }
+        });
+        if (!template) throw new ExpressError("Template not found", 404);
+        await prisma.event.update({
+            where: { id: eventId },
+            data: { activeTemplate: { connect: { id: templateId } } }
+        });
+    }
 
     const event = await prisma.event.findUnique({
         where: { id: eventId },
         include: { owner: true, activeTemplate: true }
     });
 
-    if (!event) throw new ExpressError("Event not found", 404);
-
     // Use passed template OR active template from relation
-    let emailTemplate = template || (event.activeTemplate ? event.activeTemplate.template : null);
+    let emailTemplate = event.activeTemplate.template;
 
-    if (!emailTemplate) {
-        // Fallback
-        emailTemplate = `
-            <div style="font-family: sans-serif; padding: 20px; text-align: center;">
-                <h1>Hello {{name}},</h1>
-                <p>You are registered for <strong>{{eventName}}</strong>.</p>
-                <img src="{{qrCode}}" alt="Ticket QR" style="width: 200px; height: 200px;" />
-                <p>Team: {{teamName}}</p>
-                <p>Show this code at the entrance.</p>
-            </div>
-        `;
-    }
-
-    const participants = await prisma.participant.findMany({
+    const Allparticipants = await prisma.participant.findMany({
         where: { eventId }
     });
 
+    const EmailLog = await prisma.emailLog.findMany({
+        where: { eventId, status: "SENT" }
+    });
+
+    const participants = Allparticipants.filter(p => {
+        return !EmailLog.some(log => log.participantId === p.id);
+    });
+
     if (participants.length === 0) {
-        return res.json({ message: "No participants to email", count: 0 });
+        return res.json({ message: "No participants are remaining to email", count: 0 });
     }
 
     // Create persistent job
@@ -123,7 +135,12 @@ export const sendEventEmails = async (req, res) => {
                         .replace(/{{eventName}}/g, event.name)
                         .replace(/{{qrCode}}/g, qrUrl)
                         .replace(/{{teamName}}/g, p.teamName || "Individual")
-                        .replace(/{{token}}/g, p.token);
+                        .replace(/{{token}}/g, p.token)
+                        .replace(/{{teamId}}/g, p.teamId || "N/A")
+                        .replace(/{{phone}}/g, p.phone || "N/A")
+                        .replace(/{{branch}}/g, p.branch || "N/A")
+                        .replace(/{{year}}/g, p.year || "N/A")
+                        .replace(/{{qrUrl}}/g, p.qrUrl || "N/A");
 
                     if (p.data && typeof p.data === 'object') {
                         Object.keys(p.data).forEach(key => {
@@ -135,7 +152,7 @@ export const sendEventEmails = async (req, res) => {
                     await transporter.sendMail({
                         from: event.owner.email,
                         to: p.email,
-                        subject: subject || `Your Ticket for ${event.name}`,
+                        subject: event.activeTemplate.subject || `Your Ticket for ${event.name}`,
                         html: html
                     });
 
@@ -149,6 +166,10 @@ export const sendEventEmails = async (req, res) => {
                             status: "SENT",
                             jobId: job.id
                         }
+                    });
+
+                    await prisma.emailLog.deleteMany({
+                        where: { participantId: p.id, status: "FAILED" }
                     });
 
                 } catch (err) {
@@ -216,9 +237,6 @@ export const updateParticipant = async (req, res) => {
 
     const prismaData = {};
     const jsonData = {};
-
-    console.log("updates", updates);
-
 
     Object.keys(updates).forEach(key => {
         // console.log("Outer", key);
@@ -297,11 +315,11 @@ export const sendParticipantEmail = async (req, res) => {
     const participant = await prisma.participant.findUnique({ where: { id } });
     if (!participant) throw new ExpressError("Participant not found", 404);
 
-    let emailTemplate = template || (event.activeTemplate ? event.activeTemplate.template : null);
-    if (!emailTemplate) {
-        // Simple fallback
-        emailTemplate = `<p>Hello {{name}}, <br> This is your ticket for {{eventName}}. <br> <img src="{{qrCode}}" width="200"/> <br> Code: {{token}}</p>`;
-    };
+    if (event.activeTemplate === null) {
+        throw new ExpressError("No active template found", 404);
+    }
+
+    let emailTemplate = template || event.activeTemplate.template;
 
     // Check QR
     let qrUrl = participant.qrUrl;
@@ -341,13 +359,17 @@ export const sendParticipantEmail = async (req, res) => {
         await transporter.sendMail({
             from: event.owner.email,
             to: participant.email,
-            subject: subject || `Your Ticket for ${event.name}`,
+            subject: event.activeTemplate.subject || `Your Ticket for ${event.name}`,
             html: html
         });
 
         await prisma.emailLog.create({
             data: { eventId, participantId: id, status: "SENT" }
         });
+
+        await prisma.emailLog.deleteMany({
+            where: { eventId, participantId: id, status: "FAILED" }
+        })
 
         res.json({ message: "Email sent successfully" });
     } catch (err) {

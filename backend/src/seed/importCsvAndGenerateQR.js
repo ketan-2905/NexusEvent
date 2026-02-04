@@ -16,7 +16,6 @@ async function processCSV(filePath) {
     .pipe(csv())
     .on("data", (row) => participants.push(row))
     .on("end", async () => {
-      console.log(`📄 Loaded ${participants.length} participants`);
       for (const row of participants) {
         try {
           const token = generateToken();
@@ -39,17 +38,15 @@ async function processCSV(filePath) {
             },
           });
 
-          console.log(`✅ Added ${newParticipant.name} (${newParticipant.email})`);
+
           await sendQRMail(newParticipant.email, newParticipant.name, uploadResponse.secure_url, token);
 
-          //  console.log(`✅ Added ${row.Name} (${row.Email})`);
-          // await sendQRMail(row.Email, row.Name, uploadResponse.secure_url, token);
+
         } catch (err) {
           console.error("Error processing row:", err);
         }
       }
       await prisma.$disconnect();
-      console.log("🎉 All done!");
     });
 }
 
