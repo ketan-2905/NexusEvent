@@ -377,8 +377,8 @@ const EventEmailEditor = ({ eventId, eventName, onConfirm, onCancel }) => {
 
     const getPreviewHtml = () => {
         const p = previewParticipant || {
-            name: "John Doe",
-            email: "john@example.com",
+            name: "Athrav mane",
+            email: "athravmanemane@example.com",
             teamName: "Team Alpha",
             token: "DEMO-TOKEN",
             data: {}
