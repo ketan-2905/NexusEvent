@@ -58,7 +58,7 @@ import staffRoutes from "./routes/staff.routes.js";
 app.use("/api/staff", staffRoutes);
 app.use("/api/users", userRoutes);
 app.get("/", (req, res) => {
-  res.send("✅ Backend is live and running on huggingface!");
+  res.send("Backend is live and running");
 });
 
 // 404 handler - must be after all routes
